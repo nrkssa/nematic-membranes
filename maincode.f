@@ -10,11 +10,12 @@
         Include 'mpif.h'                                								            ! Header for using MPIF90
 
         Integer:: i,i1
-        Integer :: ier,num_rings,nbuffer,buffsize
+        Integer :: ier,num_rings,nbuffer,buffsize,hexnline
         Real(Kind=8),Dimension(:),Allocatable :: pern,Kparstr,Kperstr,cparstr,cperstr
-        Real(Kind=8):: bud_area,kappa_unscaled
+        Real(Kind=8):: bud_area,kappa_unscaled,hexbl
 		Real(Kind=8), Allocatable :: surfaceprop(:,:),energyprop(:,:)
         Character(100) :: nname,fname,start_state,surffile,energyfile,syscmd,nem_profile
+        Logical :: initializefield=.False.
 
         fangle=-0.5 ;  maxtl=SQRT(3.0)
         pi=acos(-1.0000000000000) ; NPhase=2 ; nbuffer=10; buffsize=1
@@ -48,7 +49,8 @@
         Do i=1,Nphase,1
         READ(01,*),nempar(i:i,:)
         Enddo 
-        Read(01,*),start_state                                   						    ! starting state 'MEMBRANE' or 'RESTART'                                
+        Read(01,*),start_state                                   						    ! starting state 'MEMBRANE' or 'RESTART' or 'HEXAHEDRON'
+        Read(01,*),hexnline,hexbl                                                              ! number of discretization and bondlength                                
 		Read(01,*),itime,ftime,dataint,confint
 		Read(01,*),nem_profile,bud_area,num_rings	
         Close(01)
@@ -59,27 +61,35 @@
 		Allocate(surfaceprop(nbuffer,4))
 		Allocate(energyprop(nbuffer,4))
 
-
         If(Trim(start_state).Eq. 'MEMBRANE')Then
-        Call Read_Memb_Configuration(start_state)            								            ! Reads only the membrane data
-        mp%nadd=Nint(nver*pern(1))                							                            ! No of additive particles to be present 
-        mp%nmem=nver-mp%nadd                           								                    ! No of membrane particle  to be present 
-		If (Trim(Adjustl(nem_profile)) .Eq. 'CIRCULAR') Then
-         Call Initialize_PatchOfProteins(mp%nadd)                      							        ! Arranges all nematics as a single patch  
-		Else If (Trim(Adjustl(nem_profile)) .Eq. 'RANDOM') Then
-         Call Initialize_Proteins_Randomly(mp%nadd)                     							    ! Randomly distribute the nematics       
-		Else If (Trim(Adjustl(nem_profile)) .Eq. 'BUDSIZE_NUMBER') Then
-		 Call Initialize_Annulus_Area_and_Number(bud_area,mp%nadd)
-        Else If (Trim(Adjustl(nem_profile)) .Eq. 'BUDSIZE_RINGS') Then
-  	  	 Call Initialize_Annulus_Area_and_rings(bud_area,num_rings)
-		Else If (Trim(Adjustl(nem_profile)) .Eq. 'BUDSIZE_PATCH') Then
-	 	 Call Initialize_Patch_Specified_Area(bud_area)
-	 	Endif
+          Call Read_Memb_Configuration(start_state)            								            ! Reads only the membrane data
+          initializefield=.True.
+        ElseIf(Trim(start_state) .Eq. 'HEXAHEDRON') Then
+          Call make_hexahedron(hexnline,hexbl)
+          initializefield=.True.
         Else If(Trim(start_state).Eq. 'RESTART')Then
-        Call Read_Memb_Configuration(start_state)                    								    ! Reads membrane + nematic data 
-        mp%nadd=Nint(nver*pern(1))                        	 								            ! No of additive particles to be present 
-        mp%nmem=nver-mp%nadd
+          Call Read_Memb_Configuration(start_state)                    								    ! Reads membrane + nematic data 
+          mp%nadd=Nint(nver*pern(1))                        	 								            ! No of additive particles to be present 
+          mp%nmem=nver-mp%nadd
+          initializefield = .False.
        Endif
+          
+       If (initializefield) Then
+         mp%nadd=Nint(nver*pern(1))                							                            ! No of additive particles to be present 
+         mp%nmem=nver-mp%nadd                           								                    ! No of membrane particle  to be present 
+		 If (Trim(Adjustl(nem_profile)) .Eq. 'CIRCULAR') Then
+          Call Initialize_PatchOfProteins(mp%nadd)                      							        ! Arranges all nematics as a single patch  
+		 Else If (Trim(Adjustl(nem_profile)) .Eq. 'RANDOM') Then
+          Call Initialize_Proteins_Randomly(mp%nadd)                     							    ! Randomly distribute the nematics       
+		 Else If (Trim(Adjustl(nem_profile)) .Eq. 'BUDSIZE_NUMBER') Then
+		  Call Initialize_Annulus_Area_and_Number(bud_area,mp%nadd)
+         Else If (Trim(Adjustl(nem_profile)) .Eq. 'BUDSIZE_RINGS') Then
+  	  	  Call Initialize_Annulus_Area_and_rings(bud_area,num_rings)
+		 Else If (Trim(Adjustl(nem_profile)) .Eq. 'BUDSIZE_PATCH') Then
+	 	  Call Initialize_Patch_Specified_Area(bud_area)
+	 	 Endif
+		Endif
+	 	
 
         Do i=1,nver,1
         ver(i)%kpar=Kparstr(ver(i)%phase) ; ver(i)%kper=Kperstr(ver(i)%phase)                           ! Allocate Parameters to individual vertices 
@@ -92,9 +102,13 @@
        vertice_Call: DO i=1,nver                               								            ! Normal calculation over each vertex 
        Call normalcalc(i)
        Enddo vertice_Call
+       
 
        Call vtkformat(0)                                                                                ! Dumps a vtu file that may be viewed in Paraview
        Call Write_Memb_Configuration(0)                                                                 ! Dump a configuration that can be used to restart
+       
+       Print*,'Dumping Initial Configurations'
+       
        mvinter=Nint(Real(tlink)/nver)                                 								    ! Ratio of link flip to vertex move 
 
 	   fname="./rundir-"//Trim(Adjustl(nname))//'/protein-numbers.dat'
@@ -113,7 +127,7 @@
        mcs_loop: DO mcs=itime,ftime,1                           								    ! Monte Carlo loop 
        Call Monte_Carlo_Steps()
 
-       If(mod(mcs,confint).Eq.0)Then
+       If(mod(mcs,confint) .Eq. 0)Then
         Call vtkformat(mcs/confint)                                            
         Call Write_Memb_configuration(mcs/confint)
        Endif

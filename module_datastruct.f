@@ -41,16 +41,15 @@
     
       TYPE membrane_prop
            REAL(KIND=8) :: enel,ento,ennn,ennc,enIsing,lam_ennn,lam_ennc   ! The different energy terms involved 
-	   REAL(KIND=8) :: lambda_ener
+	   	   REAL(KIND=8) :: lambda_ener
            REAL(KIND=8) :: vol,area,rg,op,pdef,ndef                      ! Volume, area, Radius of Gyration    
            Integer      :: phdef,nhdef,p1def,n1def
            REAL(KIND=8) :: imcur,imcursq,lambda
            INTEGER :: nadd,nmem,noclus,Inlen
-  	   Type(vertex),Allocatable :: vertex(:)
+  	  	   Type(vertex),Allocatable :: vertex(:)
            Type(triangle),Allocatable :: triangle(:)
            Type(link),Allocatable :: link(:)
-	   Character(100) :: Lambda_variable
-
+		   Character(100) :: Lambda_variable
       END TYPE membrane_prop 
 
       Type Linklist
