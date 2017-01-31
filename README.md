@@ -162,3 +162,16 @@ The code is divided into the following modules:
   `javaview` (www.javaview.de) for the `.jvx` files
 
   In the case of paraview, in order to view the nematic field,  you should load the `glyph` object with `line` representation (from -0.5 to 0.5) and choose `scale as vector`, with a scaling factor of 1.0.
+
+
+### Modifications
+##### 30 Jan 2017
+  - `maincode.f`: a new startup mode `HEXAHEDRON` has been introduced and this allows one to startup from a triangulated hexahedron and equilibrate to a quasi spherical morphology.
+  - `module_rerun.f`: subroutines `make_hexahedron` and `order_triangles` introduced
+  - `parameters.in`:
+   - Line 9: Allowed startup modes are 'RESTART','MEMBRANE',or 'HEXAHEDRON'
+   - Line 10: Two additional parameters `hexnline` and `hexbl` introduced. These two parameters are used only when the startup mode is `HEXAHEDRON`. These parameters are passed as arguments to `make_hexahedron`. `hexnline` is related to the total number of vertices, triangles, and links as:
+      - nver = 3*hexnline**2-2
+      - ntr = 2*(nver-2)
+      - tlink = nver + ntr - 2
+    - `hexbl` is the bond length and should take a value between 1.0 and sqrt(3.0)
