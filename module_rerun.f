@@ -25,7 +25,6 @@
         nt=3*N*(N+1)/2+1
 
         Allocate(x(nver))                                                !The size of the arrays involved are allocated 
-        Allocate(x(nver))                                                !The size of the arrays involved are allocated 
         Allocate(y(nver))
         Allocate(z(nver))
         Allocate(ip(nver,9))
